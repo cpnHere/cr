@@ -1,0 +1,910 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CR</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700;900&family=DM+Mono:wght@400;500&family=DM+Sans:wght@300;400;500&display=swap');
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  /* ── theme tokens ── */
+  :root[data-theme="dark"] {
+    --bg:           #0f0e17;
+    --surface:      #1a1826;
+    --card:         #211f30;
+    --border:       #2e2b42;
+    --accent:       #ff6b35;
+    --accent2:      #f7c59f;
+    --gold:         #e8c97e;
+    --text:         #fffffe;
+    --muted:        #a7a5b8;
+    --chord-col:    #ff6b35;
+    --lyric-col:    #fffffe;
+    --hover-row:    #272438;
+    --selected-row: #2a2042;
+    --th-color:     #a7a5b8;
+    --toggle-bg:    #2e2b42;
+  }
+  :root[data-theme="light"] {
+    --bg:           #f5f3ee;
+    --surface:      #ffffff;
+    --card:         #ece9e1;
+    --border:       #d8d4c8;
+    --accent:       #c94a1a;
+    --accent2:      #9c3a10;
+    --gold:         #8a6800;
+    --text:         #1a1714;
+    --muted:        #6b6560;
+    --chord-col:    #c94a1a;
+    --lyric-col:    #1a1714;
+    --hover-row:    #ede9e0;
+    --selected-row: #f5ddd4;
+    --th-color:     #6b6560;
+    --toggle-bg:    #d8d4c8;
+  }
+
+  html, body {
+    height: 100%;
+    font-family: 'DM Sans', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    overflow-x: hidden;
+    transition: background 0.3s, color 0.3s;
+  }
+
+  #app { display: flex; flex-direction: column; min-height: 100vh; }
+
+  /* ── header ── */
+  header {
+    padding: 1.3rem 1.8rem 1rem;
+    border-bottom: 1px solid var(--border);
+    background: var(--surface);
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    flex-wrap: wrap;
+    transition: background 0.3s, border-color 0.3s;
+  }
+
+  .logo {
+    font-family: 'Playfair Display', serif;
+    font-size: clamp(2rem, 5vw, 2.8rem);
+    font-weight: 900;
+    letter-spacing: -0.04em;
+    color: var(--text);
+    line-height: 1;
+  }
+  .logo span { color: var(--accent); }
+
+  .tagline {
+    font-size: 0.68rem;
+    color: var(--muted);
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    margin-top: 0.25rem;
+  }
+
+  /* ── header right ── */
+  .header-right {
+    margin-left: auto;
+    display: flex;
+    align-items: center;
+    gap: 0.7rem;
+  }
+
+  #search {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    color: var(--text);
+    font-family: 'DM Sans', sans-serif;
+    font-size: 0.88rem;
+    padding: 0.42rem 0.85rem;
+    outline: none;
+    width: clamp(120px, 20vw, 230px);
+    transition: border-color 0.2s, background 0.3s, color 0.3s;
+  }
+  #search:focus { border-color: var(--accent); }
+  #search::placeholder { color: var(--muted); }
+
+  /* ── theme toggle pill ── */
+  #theme-btn {
+    background: var(--toggle-bg);
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    cursor: pointer;
+    width: 3rem;
+    height: 1.6rem;
+    display: flex;
+    align-items: center;
+    padding: 0 0.22rem;
+    flex-shrink: 0;
+    position: relative;
+    transition: background 0.3s, border-color 0.2s;
+  }
+  #theme-btn:hover { border-color: var(--accent); }
+
+  .theme-thumb {
+    width: 1.15rem;
+    height: 1.15rem;
+    border-radius: 50%;
+    background: var(--accent);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.55rem;
+    line-height: 1;
+    transition: transform 0.3s cubic-bezier(.4,0,.2,1);
+  }
+  [data-theme="dark"]  .theme-thumb { transform: translateX(0); }
+  [data-theme="light"] .theme-thumb { transform: translateX(1.35rem); }
+
+  .theme-label {
+    position: absolute;
+    font-size: 0.5rem;
+    color: var(--muted);
+    pointer-events: none;
+  }
+  [data-theme="dark"]  .theme-label { right: 0.28rem; }
+  [data-theme="light"] .theme-label { left: 0.28rem; }
+
+  /* ── layout ── */
+  main { display: flex; flex: 1; overflow: hidden; }
+
+  #list-panel {
+    width: 100%;
+    max-width: 820px;
+    overflow-y: auto;
+    padding: 1.3rem 1.4rem 3rem;
+  }
+
+  /* ── table ── */
+  .song-count {
+    font-size: 0.7rem;
+    color: var(--muted);
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    margin-bottom: 0.6rem;
+  }
+
+  table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
+
+  thead th {
+    text-align: left;
+    padding: 0.5rem 0.75rem;
+    font-family: 'DM Mono', monospace;
+    font-size: 0.67rem;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--th-color);
+    border-bottom: 1px solid var(--border);
+    cursor: pointer;
+    user-select: none;
+    white-space: nowrap;
+    transition: color 0.2s;
+  }
+  thead th:hover { color: var(--accent2); }
+  thead th .sort-icon { margin-left: 0.3em; opacity: 0.4; font-size: 0.6rem; }
+  thead th.active { color: var(--gold); }
+  thead th.active .sort-icon { opacity: 1; }
+
+  tbody tr {
+    border-bottom: 1px solid var(--border);
+    cursor: pointer;
+    transition: background 0.12s;
+  }
+  tbody tr:hover { background: var(--hover-row); }
+  tbody tr.selected { background: var(--selected-row); }
+  tbody tr.selected td:first-child {
+    border-left: 3px solid var(--accent);
+    padding-left: calc(0.75rem - 3px);
+  }
+
+  td { padding: 0.65rem 0.75rem; vertical-align: middle; }
+  td.title-cell {
+    font-family: 'Playfair Display', serif;
+    font-weight: 700;
+    font-size: 0.96rem;
+    color: var(--text);
+  }
+  td.meta-cell { color: var(--muted); font-size: 0.82rem; }
+
+  .no-results {
+    color: var(--muted);
+    font-size: 0.88rem;
+    padding: 2rem 0;
+    text-align: center;
+  }
+
+  /* ── chord sheet panel ── */
+  #sheet-panel {
+    display: none;
+    flex: 1;
+    border-left: 1px solid var(--border);
+    overflow-y: auto;
+    padding: 2rem 2rem 4rem;
+    background: var(--surface);
+    position: relative;
+    transition: background 0.3s, border-color 0.3s;
+  }
+  #sheet-panel.open { display: block; }
+
+  .sheet-header {
+    margin-bottom: 1.5rem;
+    padding-bottom: 1rem;
+    border-bottom: 1px solid var(--border);
+  }
+  .sheet-title {
+    font-family: 'Playfair Display', serif;
+    font-size: clamp(1.3rem, 4vw, 2rem);
+    font-weight: 900;
+    color: var(--text);
+    line-height: 1.15;
+  }
+  .sheet-meta {
+    margin-top: 0.5rem;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.3rem 1rem;
+    font-size: 0.78rem;
+    color: var(--muted);
+  }
+  .sheet-meta span { display: flex; gap: 0.3em; align-items: center; }
+  .sheet-meta strong { color: var(--accent2); font-weight: 500; }
+
+  #close-btn {
+    position: absolute;
+    top: 1.2rem;
+    right: 1.2rem;
+    background: var(--card);
+    border: 1px solid var(--border);
+    color: var(--muted);
+    border-radius: 50%;
+    width: 1.9rem;
+    height: 1.9rem;
+    font-size: 0.95rem;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: color 0.2s, border-color 0.2s, background 0.3s;
+  }
+  #close-btn:hover { color: var(--accent); border-color: var(--accent); }
+
+  /* ── chord sheet content ── */
+  .sheet-body { line-height: 1; }
+
+  .line {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    margin-bottom: 0.2rem;
+    min-height: 2.9em;
+  }
+  .cell { display: inline-flex; flex-direction: column; align-items: flex-start; }
+
+  .chord {
+    font-family: 'DM Mono', monospace;
+    font-size: 0.78rem;
+    font-weight: 500;
+    color: var(--chord-col);
+    line-height: 1.35;
+    white-space: pre;
+    min-width: 1ch;
+  }
+  .lyric {
+    font-family: 'DM Sans', sans-serif;
+    font-size: 1rem;
+    color: var(--lyric-col);
+    white-space: pre;
+    line-height: 1.5;
+  }
+  .lyric-plain {
+    font-family: 'DM Sans', sans-serif;
+    font-size: 1rem;
+    color: var(--lyric-col);
+    line-height: 2.3;
+  }
+  .prefix {
+    font-family: 'DM Sans', sans-serif;
+    font-size: 1rem;
+    color: var(--muted);
+    align-self: flex-end;
+    line-height: 1.5;
+  }
+
+  /* ── mobile ── */
+  @media (max-width: 680px) {
+    main { position: relative; }
+    #list-panel { max-width: 100%; padding: 1rem 0.8rem 3rem; }
+    #sheet-panel {
+      position: fixed;
+      inset: 0;
+      z-index: 100;
+      border-left: none;
+      padding: 1.2rem 1rem 4rem;
+      overflow-y: auto;
+    }
+    #close-btn { top: 0.8rem; right: 0.8rem; }
+    td.meta-cell { display: none; }
+    thead th.hide-mobile { display: none; }
+  }
+
+  /* ── scrollbar ── */
+  ::-webkit-scrollbar { width: 5px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+  ::-webkit-scrollbar-thumb:hover { background: var(--muted); }
+</style>
+</head>
+<body>
+<div id="app">
+
+  <header>
+    <div>
+      <div class="logo">C<span>R</span></div>
+      <div class="tagline">Guitar Chord Reference</div>
+    </div>
+    <div class="header-right">
+      <input id="search" type="search" placeholder="Search…" oninput="filterSongs()">
+      <button id="theme-btn" onclick="toggleTheme()" title="Toggle dark / light theme" aria-label="Toggle theme">
+        <div class="theme-thumb" id="theme-thumb"></div>
+        <span class="theme-label" id="theme-label"></span>
+      </button>
+    </div>
+  </header>
+
+  <main>
+    <div id="list-panel">
+      <div class="song-count" id="song-count"></div>
+      <table>
+        <thead>
+          <tr>
+            <th onclick="sortBy(0)" class="active" data-col="0">Title <span class="sort-icon">▲</span></th>
+            <th onclick="sortBy(1)" data-col="1" class="hide-mobile">Composer <span class="sort-icon">⇅</span></th>
+            <th onclick="sortBy(2)" data-col="2" class="hide-mobile">Lyricist <span class="sort-icon">⇅</span></th>
+            <th onclick="sortBy(3)" data-col="3" class="hide-mobile">Singer <span class="sort-icon">⇅</span></th>
+          </tr>
+        </thead>
+        <tbody id="song-tbody"></tbody>
+      </table>
+      <div class="no-results" id="no-results" style="display:none">No songs found.</div>
+    </div>
+
+    <div id="sheet-panel">
+      <button id="close-btn" onclick="closeSheet()">✕</button>
+      <div class="sheet-header">
+        <div class="sheet-title" id="sheet-title"></div>
+        <div class="sheet-meta"  id="sheet-meta"></div>
+      </div>
+      <div class="sheet-body" id="sheet-body"></div>
+    </div>
+  </main>
+
+</div>
+<script>
+const SONGS = [
+  {
+    "title": "Ape Hangum Walata",
+    "composer": "Victor",
+    "lyricist": "Premekeerthi",
+    "singer": "Victor",
+    "sections": [
+      "<div class=\"line\"><span class=\"cell\"><span class=\"chord\">Dm</span><span class=\"lyric\">අපෙ හැඟුම් වලට ඉඩ දී මොහො</span></span><span class=\"cell\"><span class=\"chord\">A</span><span class=\"lyric\">තක්</span></span></div>",
+      "<div class=\"line\"><span class=\"prefix\">ඉඩ </span><span class=\"cell\"><span class=\"chord\">Gm</span><span class=\"lyric\">ලබා ගනිමු තර</span></span><span class=\"cell\"><span class=\"chord\">A</span><span class=\"lyric\">මින් විය</span></span><span class=\"cell\"><span class=\"chord\">Dm</span><span class=\"lyric\">තක්</span></span></div>",
+      "<div class=\"line\"><span class=\"cell\"><span class=\"chord\">Dm</span><span class=\"lyric\">හඳපානේ.... </span></span><span class=\"cell\"><span class=\"chord\">Gm</span><span class=\"lyric\">මද අඳුරේ...</span></span></div>",
+      "<div class=\"line\"><span class=\"cell\"><span class=\"chord\">Dm</span><span class=\"lyric\">අත් පට</span></span><span class=\"cell\"><span class=\"chord\">A</span><span class=\"lyric\">ලා යමු </span></span><span class=\"cell\"><span class=\"chord\">Dm</span><span class=\"lyric\">ආයේ</span></span></div>",
+      "<div class=\"line\"><span class=\"lyric-plain\"></span></div>",
+      "<div class=\"line\"><span class=\"cell\"><span class=\"chord\">Dm</span><span class=\"lyric\">ඔබ ඔබෙ සෙවනැල්</span></span><span class=\"cell\"><span class=\"chord\">Gm</span><span class=\"lyric\">ලෙන් මිදී</span></span></div>",
+      "<div class=\"line\"><span class=\"cell\"><span class=\"chord\">A</span><span class=\"lyric\">මම මගෙ සෙවනැල්</span></span><span class=\"cell\"><span class=\"chord\">D</span><span class=\"lyric\">ලෙන් මිදී</span></span></div>",
+      "<div class=\"line\"><span class=\"prefix\">අවු</span><span class=\"cell\"><span class=\"chord\">G</span><span class=\"lyric\">දින් හෙමින් රහ</span></span><span class=\"cell\"><span class=\"chord\">D</span><span class=\"lyric\">සින් මුමුණා</span></span></div>",
+      "<div class=\"line\"><span class=\"cell\"><span class=\"chord\">Dm</span><span class=\"lyric\">හඳපානේ </span></span><span class=\"cell\"><span class=\"chord\">A</span><span class=\"lyric\">මද අඳු</span></span><span class=\"cell\"><span class=\"chord\">Dm</span><span class=\"lyric\">රේ</span></span></div>",
+      "<div class=\"line\"><span class=\"lyric-plain\"></span></div>",
+      "<div class=\"line\"><span class=\"cell\"><span class=\"chord\">Dm</span><span class=\"lyric\">හිරකර හසරැල්</span></span><span class=\"cell\"><span class=\"chord\">Gm</span><span class=\"lyric\">ලෙන් හැඬුම්</span></span></div>",
+      "<div class=\"line\"><span class=\"cell\"><span class=\"chord\">A</span><span class=\"lyric\">අපි හිනෙහෙමු </span></span><span class=\"cell\"><span class=\"chord\">D</span><span class=\"lyric\">සපුරා පැතුම්</span></span></div>",
+      "<div class=\"line\"><span class=\"prefix\">මතු </span><span class=\"cell\"><span class=\"chord\">G</span><span class=\"lyric\">ආත්මයේ හමු</span></span><span class=\"cell\"><span class=\"chord\">D</span><span class=\"lyric\">වෙන පැතුමින්</span></span></div>",
+      "<div class=\"line\"><span class=\"cell\"><span class=\"chord\">Dm</span><span class=\"lyric\">යමු වෙන් වී </span></span><span class=\"cell\"><span class=\"chord\">A</span><span class=\"lyric\">හිමිදිරි</span></span><span class=\"cell\"><span class=\"chord\">Dm</span><span class=\"lyric\">යේ</span></span></div>"
+    ],
+    "filename": "ape_hangum_walata.txt"
+  },
+  {
+    "title": "Bonda wi giya",
+    "composer": "Composer",
+    "lyricist": "Lyricist",
+    "singer": "Singer",
+    "sections": [
+      "<div class=\"line\"><span class=\"cell\"><span class=\"chord\">F</span><span class=\"lyric\">බොඳවී ගිය වර්ණය</span></span><span class=\"cell\"><span class=\"chord\">C</span><span class=\"lyric\">ක</span></span></div>",
+      "<div class=\"line\"><span class=\"prefix\">මැ</span><span class=\"cell\"><span class=\"chord\">G#m</span><span class=\"lyric\">කී ගිය </span></span><span class=\"cell\"><span class=\"chord\">C</span><span class=\"lyric\">ඡේදය</span></span><span class=\"cell\"><span class=\"chord\">F</span><span class=\"lyric\">ක</span></span></div>",
+      "<div class=\"line\"><span class=\"prefix\">අරුත් </span><span class=\"cell\"><span class=\"chord\">C</span><span class=\"lyric\">සුන් දහම ම</span></span><span class=\"cell\"><span class=\"chord\">F</span><span class=\"lyric\">ත</span></span></div>",
+      "<div class=\"line\"><span class=\"prefix\">නි</span><span class=\"cell\"><span class=\"chord\">Gm#</span><span class=\"lyric\">වී ගිය හැ</span></span><span class=\"cell\"><span class=\"chord\">C</span><span class=\"lyric\">ඟුම් පෙ</span></span><span class=\"cell\"><span class=\"chord\">F</span><span class=\"lyric\">ළ</span></span></div>",
+      "<div class=\"line\"><span class=\"prefix\">ඔ</span><span class=\"cell\"><span class=\"chord\">C</span><span class=\"lyric\">බයි... ම</span></span><span class=\"cell\"><span class=\"chord\">G#m</span><span class=\"lyric\">මයි...</span></span></div>",
+      "<div class=\"line\"><span class=\"prefix\">නොකි</span><span class=\"cell\"><span class=\"chord\">C</span><span class=\"lyric\">වූ රහස් පෙ</span></span><span class=\"cell\"><span class=\"chord\">F</span><span class=\"lyric\">ළ</span></span></div>",
+      "<div class=\"line\"><span class=\"lyric-plain\"></span></div>",
+      "<div class=\"line\"><span class=\"lyric-plain\"></span></div>",
+      "<div class=\"line\"><span class=\"cell\"><span class=\"chord\">F</span><span class=\"lyric\">බොඳවී ගිය වර්ණය</span></span><span class=\"cell\"><span class=\"chord\">Gm#</span><span class=\"lyric\">ක</span></span></div>",
+      "<div class=\"line\"><span class=\"prefix\">මැ</span><span class=\"cell\"><span class=\"chord\">C</span><span class=\"lyric\">කී ගිය </span></span><span class=\"cell\"><span class=\"chord\">C</span><span class=\"lyric\">ඡේදය</span></span><span class=\"cell\"><span class=\"chord\">F</span><span class=\"lyric\">ක</span></span></div>",
+      "<div class=\"line\"><span class=\"prefix\">අරුත් </span><span class=\"cell\"><span class=\"chord\">C</span><span class=\"lyric\">සුන් දහම ම</span></span><span class=\"cell\"><span class=\"chord\">F</span><span class=\"lyric\">ත</span></span></div>",
+      "<div class=\"line\"><span class=\"prefix\">නි</span><span class=\"cell\"><span class=\"chord\">G#m</span><span class=\"lyric\">වී ගිය හැ</span></span><span class=\"cell\"><span class=\"chord\">C</span><span class=\"lyric\">ඟුම් පෙ</span></span><span class=\"cell\"><span class=\"chord\">F</span><span class=\"lyric\">ළ</span></span></div>",
+      "<div class=\"line\"><span class=\"prefix\">ඔ</span><span class=\"cell\"><span class=\"chord\">C</span><span class=\"lyric\">බයි... ම</span></span><span class=\"cell\"><span class=\"chord\">G#m</span><span class=\"lyric\">මයි...</span></span></div>",
+      "<div class=\"line\"><span class=\"prefix\">නොකි</span><span class=\"cell\"><span class=\"chord\">C</span><span class=\"lyric\">වූ රහස් පෙ</span></span><span class=\"cell\"><span class=\"chord\">F</span><span class=\"lyric\">ළ</span></span></div>"
+    ],
+    "filename": "bonda_wi_giya.txt"
+  },
+  {
+    "title": "Himi nathi pemakata",
+    "composer": "Rohana Weerasinghe",
+    "lyricist": "Camillus Perera",
+    "singer": "Malani Bulathsinhala",
+    "sections": [
+      "<div class=\"line\"><span class=\"cell\"><span class=\"chord\">F</span><span class=\"lyric\">හිමි නැති පෙමකට </span></span><span class=\"cell\"><span class=\"chord\">Dm</span><span class=\"lyric\">ඉකි බිද </span></span><span class=\"cell\"><span class=\"chord\">F</span><span class=\"lyric\">හැඩුමට</span></span></div>",
+      "<div class=\"line\"><span class=\"prefix\">සිත මගෙ </span><span class=\"cell\"><span class=\"chord\">D</span><span class=\"lyric\">බොලද වෙ</span></span><span class=\"cell\"><span class=\"chord\">Gm</span><span class=\"lyric\">ලා</span></span></div>",
+      "<div class=\"line\"><span class=\"cell\"><span class=\"chord\">Eb</span><span class=\"lyric\">අන්සතු හදකට </span></span><span class=\"cell\"><span class=\"chord\">C</span><span class=\"lyric\">පෙම් කල වරදට</span></span></div>",
+      "<div class=\"line\"><span class=\"cell\"><span class=\"chord\">C</span><span class=\"lyric\">ලොව මට එ</span></span><span class=\"cell\"><span class=\"chord\">C7</span><span class=\"lyric\">රෙහි වෙ</span></span><span class=\"cell\"><span class=\"chord\">F</span><span class=\"lyric\">ලා...//</span></span></div>",
+      "<div class=\"line\"><span class=\"lyric-plain\"></span></div>",
+      "<div class=\"line\"><span class=\"cell\"><span class=\"chord\">F</span><span class=\"lyric\">කියාගන්න මට </span></span><span class=\"cell\"><span class=\"chord\">Am</span><span class=\"lyric\">දහසක්ක් දේ ඇත</span></span></div>",
+      "<div class=\"line\"><span class=\"cell\"><span class=\"chord\">Bb</span><span class=\"lyric\">මතු දවසක ඔබ </span></span><span class=\"cell\"><span class=\"chord\">F</span><span class=\"lyric\">හා තනි</span></span><span class=\"cell\"><span class=\"chord\">Gm</span><span class=\"lyric\">වී</span></span></div>",
+      "<div class=\"line\"><span class=\"cell\"><span class=\"chord\">C</span><span class=\"lyric\">හමුවන්නටා බැහැ </span></span><span class=\"cell\"><span class=\"chord\">C7</span><span class=\"lyric\">උකුසු වෙසින් ඇත</span></span></div>",
+      "<div class=\"line\"><span class=\"cell\"><span class=\"chord\">F</span><span class=\"lyric\">නෙතු දහ</span></span><span class=\"cell\"><span class=\"chord\">C</span><span class=\"lyric\">සක් අප </span></span><span class=\"cell\"><span class=\"chord\">C7</span><span class=\"lyric\">වෙත යොමු</span></span><span class=\"cell\"><span class=\"chord\">F</span><span class=\"lyric\">වී</span></span></div>",
+      "<div class=\"line\"><span class=\"lyric-plain\"></span></div>",
+      "<div class=\"line\"><span class=\"cell\"><span class=\"chord\">F</span><span class=\"lyric\">කිරිල්ලියක ලෙස </span></span><span class=\"cell\"><span class=\"chord\">Am</span><span class=\"lyric\">ඉගිලී එන්නට</span></span></div>",
+      "<div class=\"line\"><span class=\"cell\"><span class=\"chord\">Bb</span><span class=\"lyric\">සිතේ අත් තටු </span></span><span class=\"cell\"><span class=\"chord\">F</span><span class=\"lyric\">නැතද මැ</span></span><span class=\"cell\"><span class=\"chord\">Gm</span><span class=\"lyric\">වී</span></span></div>",
+      "<div class=\"line\"><span class=\"cell\"><span class=\"chord\">C</span><span class=\"lyric\">වරම් නොවේ මට </span></span><span class=\"cell\"><span class=\"chord\">C7</span><span class=\"lyric\">ඔබ හමුවන්නට</span></span></div>",
+      "<div class=\"line\"><span class=\"cell\"><span class=\"chord\">F</span><span class=\"lyric\">ඈතින් </span></span><span class=\"cell\"><span class=\"chord\">C</span><span class=\"lyric\">ඉඳ හිනැ</span></span><span class=\"cell\"><span class=\"chord\">C7</span><span class=\"lyric\">හෙනු මැන</span></span><span class=\"cell\"><span class=\"chord\">F</span><span class=\"lyric\">වී</span></span></div>"
+    ],
+    "filename": "himi_nathi_pemakata.txt"
+  },
+  {
+    "title": "Hiruta Horen",
+    "composer": "Rohana Weerasinghe",
+    "lyricist": "Kularathna Ariyawansa",
+    "singer": "TM Jayarathne",
+    "sections": [
+      "<div class=\"line\"><span class=\"prefix\">හි</span><span class=\"cell\"><span class=\"chord\">G</span><span class=\"lyric\">රුට හොරෙන් ස</span></span><span class=\"cell\"><span class=\"chord\">Em</span><span class=\"lyric\">ඳුට හොරෙන්</span></span></div>",
+      "<div class=\"line\"><span class=\"prefix\">තරු ම</span><span class=\"cell\"><span class=\"chord\">C</span><span class=\"lyric\">ල් උයනේ</span></span></div>",
+      "<div class=\"line\"><span class=\"prefix\">ලො</span><span class=\"cell\"><span class=\"chord\">D</span><span class=\"lyric\">වට හොරෙන්</span></span></div>",
+      "<div class=\"line\"><span class=\"prefix\">සැ</span><span class=\"cell\"><span class=\"chord\">C</span><span class=\"lyric\">දූ ලොවයි අපේ</span></span><span class=\"cell\"><span class=\"chord\">D</span><span class=\"lyric\"> ආද</span></span><span class=\"cell\"><span class=\"chord\">D7</span><span class=\"lyric\">රේ.</span></span><span class=\"cell\"><span class=\"chord\">G</span><span class=\"lyric\">..</span></span></div>",
+      "<div class=\"line\"><span class=\"lyric-plain\"></span></div>",
+      "<div class=\"line\"><span class=\"prefix\">ඔ</span><span class=\"cell\"><span class=\"chord\">Em</span><span class=\"lyric\">බේ නුවන් තරු එළියෙන්</span></span></div>",
+      "<div class=\"line\"><span class=\"prefix\">ඒ ලෝ</span><span class=\"cell\"><span class=\"chord\">Am</span><span class=\"lyric\">කයේ සිරි නරඹ</span></span><span class=\"cell\"><span class=\"chord\">Em</span><span class=\"lyric\">න්නම්</span></span></div>",
+      "<div class=\"line\"><span class=\"prefix\">තවත් කු</span><span class=\"cell\"><span class=\"chord\">Bm</span><span class=\"lyric\">මටදෝ</span></span><span class=\"cell\"><span class=\"chord\">G</span><span class=\"lyric\"> එළිය</span></span><span class=\"cell\"><span class=\"chord\">Em</span><span class=\"lyric\">ක්</span></span></div>",
+      "<div class=\"line\"><span class=\"prefix\">ම</span><span class=\"cell\"><span class=\"chord\">Am</span><span class=\"lyric\">ගේ ලෝකයේ</span></span><span class=\"cell\"><span class=\"chord\">Em</span><span class=\"lyric\">...</span></span><span class=\"cell\"><span class=\"chord\">G</span><span class=\"lyric\">..</span></span></div>",
+      "<div class=\"line\"><span class=\"lyric-plain\"></span></div>",
+      "<div class=\"line\"><span class=\"lyric-plain\">හිරුට හොරෙන්.....</span></div>",
+      "<div class=\"line\"><span class=\"lyric-plain\"></span></div>",
+      "<div class=\"line\"><span class=\"prefix\">ඔ</span><span class=\"cell\"><span class=\"chord\">Em</span><span class=\"lyric\">බේ වදන් අම සරයෙන්</span></span></div>",
+      "<div class=\"line\"><span class=\"prefix\">ඒ ලෝ</span><span class=\"cell\"><span class=\"chord\">Am</span><span class=\"lyric\">කයේ නද රැව්</span></span><span class=\"cell\"><span class=\"chord\">Em</span><span class=\"lyric\">දේ නම්</span></span></div>",
+      "<div class=\"line\"><span class=\"prefix\">තවත් කු</span><span class=\"cell\"><span class=\"chord\">Bm</span><span class=\"lyric\">මටදෝ</span></span><span class=\"cell\"><span class=\"chord\">G</span><span class=\"lyric\"> මිහිර</span></span><span class=\"cell\"><span class=\"chord\">Em</span><span class=\"lyric\">ක්</span></span></div>",
+      "<div class=\"line\"><span class=\"prefix\">ම</span><span class=\"cell\"><span class=\"chord\">Am</span><span class=\"lyric\">ගේ ලෝකයේ</span></span><span class=\"cell\"><span class=\"chord\">Em</span><span class=\"lyric\">..</span></span><span class=\"cell\"><span class=\"chord\">G</span><span class=\"lyric\">..</span></span></div>",
+      "<div class=\"line\"><span class=\"lyric-plain\"></span></div>",
+      "<div class=\"line\"><span class=\"lyric-plain\">හිරුට හොරෙන්.....</span></div>"
+    ],
+    "filename": "hiruta_horen.txt"
+  },
+  {
+    "title": "Kimada Sumihiriye",
+    "composer": "CT",
+    "lyricist": "Karunarathna Abeyseekara",
+    "singer": "CT",
+    "sections": [
+      "<div class=\"line\"><span class=\"cell\"><span class=\"chord\">G</span><span class=\"lyric\">කිමද සුමිහිරියේ මේ අරුමේ</span></span></div>",
+      "<div class=\"line\"><span class=\"cell\"><span class=\"chord\">G</span><span class=\"lyric\">මහද පිබිදෙන්</span></span><span class=\"cell\"><span class=\"chord\">D</span><span class=\"lyric\">නේ</span></span></div>",
+      "<div class=\"line\"><span class=\"cell\"><span class=\"chord\">D</span><span class=\"lyric\">ඔබගෙ දෑසේ නැගෙන කැල්මේ</span></span></div>",
+      "<div class=\"line\"><span class=\"prefix\">රහස නැ</span><span class=\"cell\"><span class=\"chord\">D7</span><span class=\"lyric\">ත දන්නේ</span></span><span class=\"cell\"><span class=\"chord\">G</span><span class=\"lyric\">... //</span></span></div>",
+      "<div class=\"line\"><span class=\"lyric-plain\"></span></div>",
+      "<div class=\"line\"><span class=\"cell\"><span class=\"chord\">G</span><span class=\"lyric\">සෙවණැල්ල වගේ ඔබ එන විලසේ</span></span></div>",
+      "<div class=\"line\"><span class=\"prefix\">මට දැනේ නිතර රහ</span><span class=\"cell\"><span class=\"chord\">D</span><span class=\"lyric\">සේ</span></span></div>",
+      "<div class=\"line\"><span class=\"cell\"><span class=\"chord\">D</span><span class=\"lyric\">මුදු තොල් පොපියා කිසිවක් නොකියා</span></span></div>",
+      "<div class=\"line\"><span class=\"prefix\">ඇයි යන්නෙ පැන විග</span><span class=\"cell\"><span class=\"chord\">G</span><span class=\"lyric\">සේ</span></span></div>",
+      "<div class=\"line\"><span class=\"prefix\">හැම උ</span><span class=\"cell\"><span class=\"chord\">C</span><span class=\"lyric\">දේම තනියම මෙ</span></span><span class=\"cell\"><span class=\"chord\">G</span><span class=\"lyric\">සේ</span></span></div>",
+      "<div class=\"line\"><span class=\"prefix\">හැම උ</span><span class=\"cell\"><span class=\"chord\">C</span><span class=\"lyric\">දේම තනියම මෙ</span></span><span class=\"cell\"><span class=\"chord\">G</span><span class=\"lyric\">සේ</span></span></div>",
+      "<div class=\"line\"><span class=\"cell\"><span class=\"chord\">G</span><span class=\"lyric\">ප්‍රිය ළඳේ ඔ</span></span><span class=\"cell\"><span class=\"chord\">G7</span><span class=\"lyric\">බව හමු</span></span><span class=\"cell\"><span class=\"chord\">C</span><span class=\"lyric\">වේ..</span></span><span class=\"cell\"><span class=\"chord\">A</span><span class=\"lyric\"></span></span></div>",
+      "<div class=\"line\"><span class=\"prefix\">කල්</span><span class=\"cell\"><span class=\"chord\">D</span><span class=\"lyric\">පනාව පෙම්බර හිනාව පින්බර</span></span></div>",
+      "<div class=\"line\"><span class=\"cell\"><span class=\"chord\">D7</span><span class=\"lyric\">මගේ හිතට සුව </span></span><span class=\"cell\"><span class=\"chord\">G</span><span class=\"lyric\">දේ</span></span></div>",
+      "<div class=\"line\"><span class=\"lyric-plain\"></span></div>",
+      "<div class=\"line\"><span class=\"lyric-plain\">කිමද සුමිහිරියේ....</span></div>",
+      "<div class=\"line\"><span class=\"lyric-plain\"></span></div>",
+      "<div class=\"line\"><span class=\"cell\"><span class=\"chord\">G</span><span class=\"lyric\">කෙහෙරැල්ල වැටී නළලට සිරසේ</span></span></div>",
+      "<div class=\"line\"><span class=\"prefix\">සිහිලක් දේ බොළඳ මුහු</span><span class=\"cell\"><span class=\"chord\">D</span><span class=\"lyric\">ණේ</span></span></div>",
+      "<div class=\"line\"><span class=\"lyric-plain\"></span></div>",
+      "<div class=\"line\"><span class=\"lyric-plain\">වන මල් පිපිලා බර වී නැමිලා</span></div>",
+      "<div class=\"line\"><span class=\"prefix\">ළං වෙන්න එ</span><span class=\"cell\"><span class=\"chord\">D7</span><span class=\"lyric\">යි මැණිකේ</span></span><span class=\"cell\"><span class=\"chord\">G</span><span class=\"lyric\"></span></span></div>",
+      "<div class=\"line\"><span class=\"prefix\">දුටුවාම </span><span class=\"cell\"><span class=\"chord\">C</span><span class=\"lyric\">හදවත ඔ</span></span><span class=\"cell\"><span class=\"chord\">G</span><span class=\"lyric\">බේ</span></span></div>",
+      "<div class=\"line\"><span class=\"prefix\">දුටුවාම හ</span><span class=\"cell\"><span class=\"chord\">C</span><span class=\"lyric\">දවත ඔ</span></span><span class=\"cell\"><span class=\"chord\">G</span><span class=\"lyric\">බේ</span></span></div>",
+      "<div class=\"line\"><span class=\"prefix\">දුක නැසී ස</span><span class=\"cell\"><span class=\"chord\">G7</span><span class=\"lyric\">තුට ඇති</span></span><span class=\"cell\"><span class=\"chord\">C</span><span class=\"lyric\">වේ..</span></span><span class=\"cell\"><span class=\"chord\">A</span><span class=\"lyric\">.</span></span></div>",
+      "<div class=\"line\"><span class=\"prefix\">ඔබ ගි</span><span class=\"cell\"><span class=\"chord\">D</span><span class=\"lyric\">යේ බලන් හිඳ</span></span></div>",
+      "<div class=\"line\"><span class=\"lyric-plain\"></span></div>",
+      "<div class=\"line\"><span class=\"lyric-plain\">අගේ කරන්නද</span></div>",
+      "<div class=\"line\"><span class=\"prefix\">කියන්න සු</span><span class=\"cell\"><span class=\"chord\">D7</span><span class=\"lyric\">රතලියේ</span></span><span class=\"cell\"><span class=\"chord\">G</span><span class=\"lyric\"></span></span></div>",
+      "<div class=\"line\"><span class=\"lyric-plain\"></span></div>",
+      "<div class=\"line\"><span class=\"lyric-plain\">කිමද සුමිහිරියේ....</span></div>"
+    ],
+    "filename": "kimada_sumihiriye.txt"
+  },
+  {
+    "title": "Kolomthota",
+    "composer": "Amaradeva",
+    "lyricist": "Lushan",
+    "singer": "Kapuge",
+    "sections": [
+      "<div class=\"line\"><span class=\"cell\"><span class=\"chord\">Fm</span><span class=\"lyric\">කොළොම්තොට නැත ම</span></span><span class=\"cell\"><span class=\"chord\">Eb</span><span class=\"lyric\">හලු වී</span></span></div>",
+      "<div class=\"line\"><span class=\"cell\"><span class=\"chord\">C#</span><span class=\"lyric\">අවන්හල නැත පැර</span></span><span class=\"cell\"><span class=\"chord\">Eb</span><span class=\"lyric\">ණි </span></span><span class=\"cell\"><span class=\"chord\">Fm</span><span class=\"lyric\">වී</span></span></div>",
+      "<div class=\"line\"><span class=\"cell\"><span class=\"chord\">Ab</span><span class=\"lyric\">එදා හඳ ම යි අ</span></span><span class=\"cell\"><span class=\"chord\">Eb</span><span class=\"lyric\">දත් යෞවනයේ</span></span></div>",
+      "<div class=\"line\"><span class=\"cell\"><span class=\"chord\">C#</span><span class=\"lyric\">එහෙත් අප දෙන්නා</span></span><span class=\"cell\"><span class=\"chord\">Fm</span><span class=\"lyric\">..</span></span></div>",
+      "<div class=\"line\"><span class=\"cell\"><span class=\"chord\">Fm</span><span class=\"lyric\">බලන් </span></span><span class=\"cell\"><span class=\"chord\">Eb</span><span class=\"lyric\">කැඩපත </span></span><span class=\"cell\"><span class=\"chord\">C</span><span class=\"lyric\">සොඳුරියේ</span></span><span class=\"cell\"><span class=\"chord\">Fm</span><span class=\"lyric\">...</span></span></div>",
+      "<div class=\"line\"><span class=\"lyric-plain\"></span></div>",
+      "<div class=\"line\"><span class=\"lyric-plain\">[Inter]</span></div>",
+      "<div class=\"line\"><span class=\"lyric-plain\">---------------------------------------</span></div>",
+      "<div class=\"line\"><span class=\"lyric-plain\">Fm   -  Bbm  -</span></div>",
+      "<div class=\"line\"><span class=\"lyric-plain\">C     -   Fm    -</span></div>",
+      "<div class=\"line\"><span class=\"lyric-plain\">Eb   -   Ab     -</span></div>",
+      "<div class=\"line\"><span class=\"lyric-plain\">C     -   Fm    -</span></div>",
+      "<div class=\"line\"><span class=\"lyric-plain\"></span></div>",
+      "<div class=\"line\"><span class=\"lyric-plain\"></span></div>",
+      "<div class=\"line\"><span class=\"cell\"><span class=\"chord\">Fm</span><span class=\"lyric\">පෙරුම් පුරමින් හ</span></span><span class=\"cell\"><span class=\"chord\">Bbm</span><span class=\"lyric\">මු වෙලා</span></span></div>",
+      "<div class=\"line\"><span class=\"cell\"><span class=\"chord\">Eb</span><span class=\"lyric\">උනුන් රහසින් </span></span><span class=\"cell\"><span class=\"chord\">C</span><span class=\"lyric\">බැන්ද ආදර පෙ</span></span><span class=\"cell\"><span class=\"chord\">Fm</span><span class=\"lyric\">ම්</span></span></div>",
+      "<div class=\"line\"><span class=\"cell\"><span class=\"chord\">Db</span><span class=\"lyric\">බලන් කැඩපත සොඳුරි</span></span><span class=\"cell\"><span class=\"chord\">Eb</span><span class=\"lyric\">යේ</span></span></div>",
+      "<div class=\"line\"><span class=\"cell\"><span class=\"chord\">Eb</span><span class=\"lyric\">කුමන අරුම ද </span></span><span class=\"cell\"><span class=\"chord\">C</span><span class=\"lyric\">නර කෙසක් </span></span><span class=\"cell\"><span class=\"chord\">C7</span><span class=\"lyric\">නැඟිලා</span></span><span class=\"cell\"><span class=\"chord\">Fm</span><span class=\"lyric\">.</span></span><span class=\"cell\"><span class=\"chord\">C</span><span class=\"lyric\">.</span></span><span class=\"cell\"><span class=\"chord\">Fm</span><span class=\"lyric\">!</span></span></div>",
+      "<div class=\"line\"><span class=\"lyric-plain\"></span></div>",
+      "<div class=\"line\"><span class=\"cell\"><span class=\"chord\">Fm</span><span class=\"lyric\">කුඹ ගසක් උඩ නැව</span></span><span class=\"cell\"><span class=\"chord\">Bbm</span><span class=\"lyric\">තිලා</span></span></div>",
+      "<div class=\"line\"><span class=\"cell\"><span class=\"chord\">Eb</span><span class=\"lyric\">සිනා තලමින් </span></span><span class=\"cell\"><span class=\"chord\">C</span><span class=\"lyric\">සඳේ ඇයි සර</span></span><span class=\"cell\"><span class=\"chord\">Fm</span><span class=\"lyric\">දම්</span></span></div>",
+      "<div class=\"line\"><span class=\"cell\"><span class=\"chord\">Db</span><span class=\"lyric\">බලන් කැඩපත සොඳුරි</span></span><span class=\"cell\"><span class=\"chord\">Eb</span><span class=\"lyric\">යේ</span></span></div>",
+      "<div class=\"line\"><span class=\"cell\"><span class=\"chord\">Eb</span><span class=\"lyric\">පාට වත්සුනු </span></span><span class=\"cell\"><span class=\"chord\">C</span><span class=\"lyric\">දෙකොපුලෙන් </span></span><span class=\"cell\"><span class=\"chord\">C7</span><span class=\"lyric\">පිස දා</span></span><span class=\"cell\"><span class=\"chord\">Fm</span><span class=\"lyric\">..</span></span><span class=\"cell\"><span class=\"chord\">C</span><span class=\"lyric\">.</span></span><span class=\"cell\"><span class=\"chord\">Fm</span><span class=\"lyric\">.</span></span></div>"
+    ],
+    "filename": "kolomthota.txt"
+  },
+  {
+    "title": "Kuda Devika",
+    "composer": "Edman Wickckramaseekara",
+    "lyricist": "Sunanda Mahendra",
+    "singer": "Edman Wickckramaseekara",
+    "sections": [
+      "<div class=\"line\"><span class=\"cell\"><span class=\"chord\">C(D)</span><span class=\"lyric\">සුමුදු සීත පවන් හමන</span></span></div>",
+      "<div class=\"line\"><span class=\"cell\"><span class=\"chord\">F(G)</span><span class=\"lyric\">වසන්තයේ </span></span><span class=\"cell\"><span class=\"chord\">G7(A7)</span><span class=\"lyric\">උදෑසන</span></span><span class=\"cell\"><span class=\"chord\">C(D)</span><span class=\"lyric\">ක</span></span></div>",
+      "<div class=\"line\"><span class=\"cell\"><span class=\"chord\">F(G)</span><span class=\"lyric\">උයන් කොනේ </span></span><span class=\"cell\"><span class=\"chord\">G(A)</span><span class=\"lyric\">හුදෙකළා</span></span><span class=\"cell\"><span class=\"chord\">C(D)</span><span class=\"lyric\">ව ......</span></span><span class=\"cell\"><span class=\"chord\">G(A)</span><span class=\"lyric\">..</span></span></div>",
+      "<div class=\"line\"><span class=\"prefix\">[</span><span class=\"cell\"><span class=\"chord\">G(A)</span><span class=\"lyric\">බලා සිටින්නේ කුඩා </span></span><span class=\"cell\"><span class=\"chord\">G7(A7)</span><span class=\"lyric\">දේවිකා]//....</span></span><span class=\"cell\"><span class=\"chord\">C(D)</span><span class=\"lyric\">..</span></span></div>",
+      "<div class=\"line\"><span class=\"lyric-plain\"></span></div>",
+      "<div class=\"line\"><span class=\"cell\"><span class=\"chord\">C(D)</span><span class=\"lyric\">රන් වන් පත් ගැලැ</span></span><span class=\"cell\"><span class=\"chord\">F(G)</span><span class=\"lyric\">වී</span></span><span class=\"cell\"><span class=\"chord\">C(D)</span><span class=\"lyric\">ලා</span></span></div>",
+      "<div class=\"line\"><span class=\"cell\"><span class=\"chord\">C(D)</span><span class=\"lyric\">ගහ කොළ සුළ</span></span><span class=\"cell\"><span class=\"chord\">G(A)</span><span class=\"lyric\">ඟට නැවි</span></span><span class=\"cell\"><span class=\"chord\">C(D)</span><span class=\"lyric\">ලා</span></span></div>",
+      "<div class=\"line\"><span class=\"prefix\">[</span><span class=\"cell\"><span class=\"chord\">F(G)</span><span class=\"lyric\">විසිරී </span></span><span class=\"cell\"><span class=\"chord\">C(D)</span><span class=\"lyric\">යනවා </span></span><span class=\"cell\"><span class=\"chord\">G(A)</span><span class=\"lyric\">විහිදී </span></span><span class=\"cell\"><span class=\"chord\">C(D)</span><span class=\"lyric\">යනවා]//</span></span></div>",
+      "<div class=\"line\"><span class=\"lyric-plain\">G7 (A7)</span></div>",
+      "<div class=\"line\"><span class=\"lyric-plain\">ඒ දිහාද</span></div>",
+      "<div class=\"line\"><span class=\"prefix\">[</span><span class=\"cell\"><span class=\"chord\">G(A)</span><span class=\"lyric\">බලා සිටින්නේ </span></span><span class=\"cell\"><span class=\"chord\">G7(A7)</span><span class=\"lyric\">කුඩා </span></span><span class=\"cell\"><span class=\"chord\">C(D)</span><span class=\"lyric\">දේවිකා]//</span></span></div>",
+      "<div class=\"line\"><span class=\"lyric-plain\"></span></div>",
+      "<div class=\"line\"><span class=\"lyric-plain\">සුමුදු සීත...</span></div>",
+      "<div class=\"line\"><span class=\"lyric-plain\"></span></div>",
+      "<div class=\"line\"><span class=\"cell\"><span class=\"chord\">C(D)</span><span class=\"lyric\">ගස්වැල් වල කොළ ගැලවී බිමට වැ</span></span><span class=\"cell\"><span class=\"chord\">G(A)</span><span class=\"lyric\">ටෙන්නේ</span></span></div>",
+      "<div class=\"line\"><span class=\"cell\"><span class=\"chord\">G(A)</span><span class=\"lyric\">වැටෙන වැ</span></span><span class=\"cell\"><span class=\"chord\">G7(A7)</span><span class=\"lyric\">ටෙන කොළ හැ</span></span><span class=\"cell\"><span class=\"chord\">G(A)</span><span class=\"lyric\">මතැන වි</span></span><span class=\"cell\"><span class=\"chord\">G7(A7)</span><span class=\"lyric\">සිරී යන්</span></span><span class=\"cell\"><span class=\"chord\">C(D)</span><span class=\"lyric\">නේ</span></span></div>",
+      "<div class=\"line\"><span class=\"lyric-plain\"></span></div>",
+      "<div class=\"line\"><span class=\"cell\"><span class=\"chord\">C(D)</span><span class=\"lyric\">රන් වන් පත් ගැලැ</span></span><span class=\"cell\"><span class=\"chord\">F(G)</span><span class=\"lyric\">වී</span></span><span class=\"cell\"><span class=\"chord\">C(D)</span><span class=\"lyric\">ලා</span></span></div>",
+      "<div class=\"line\"><span class=\"cell\"><span class=\"chord\">C(D)</span><span class=\"lyric\">ගහ කොළ සුළ</span></span><span class=\"cell\"><span class=\"chord\">G(A)</span><span class=\"lyric\">ඟට නැවි</span></span><span class=\"cell\"><span class=\"chord\">C(D)</span><span class=\"lyric\">ලා</span></span></div>",
+      "<div class=\"line\"><span class=\"prefix\">[</span><span class=\"cell\"><span class=\"chord\">F(G)</span><span class=\"lyric\">විසිරී </span></span><span class=\"cell\"><span class=\"chord\">C(D)</span><span class=\"lyric\">යනවා </span></span><span class=\"cell\"><span class=\"chord\">G(A)</span><span class=\"lyric\">විහිදී </span></span><span class=\"cell\"><span class=\"chord\">C(D)</span><span class=\"lyric\">යනවා]//</span></span></div>",
+      "<div class=\"line\"><span class=\"cell\"><span class=\"chord\">G7(A7)</span><span class=\"lyric\">ඒ දිහාද</span></span></div>",
+      "<div class=\"line\"><span class=\"prefix\">[</span><span class=\"cell\"><span class=\"chord\">G(A)</span><span class=\"lyric\">බලා සිටින්නේ </span></span><span class=\"cell\"><span class=\"chord\">G7(A7)</span><span class=\"lyric\">කුඩා දේ</span></span><span class=\"cell\"><span class=\"chord\">C(D)</span><span class=\"lyric\">විකා]//</span></span></div>"
+    ],
+    "filename": "kuda_devika.txt"
+  },
+  {
+    "title": "Oba ma hamu wu",
+    "composer": "Composer",
+    "lyricist": "Lyricist",
+    "singer": "Keerthi Pasquel",
+    "sections": [
+      "<div class=\"line\"><span class=\"cell\"><span class=\"chord\">G</span><span class=\"lyric\">ඔබ මා හමුවූ අවසන් දිනේ තා</span></span><span class=\"cell\"><span class=\"chord\">Em</span><span class=\"lyric\">ම මා සිතේ රැඳී ති</span></span><span class=\"cell\"><span class=\"chord\">Am</span><span class=\"lyric\">යේ</span></span></div>",
+      "<div class=\"line\"><span class=\"cell\"><span class=\"chord\">D</span><span class=\"lyric\">කඳුලින් බොඳවූ දෙ</span></span><span class=\"cell\"><span class=\"chord\">D7</span><span class=\"lyric\">නුවන් ඔබේ ආදරේක වේදනා රැ</span></span><span class=\"cell\"><span class=\"chord\">G</span><span class=\"lyric\">ඳේ</span></span></div>",
+      "<div class=\"line\"><span class=\"cell\"><span class=\"chord\">G</span><span class=\"lyric\">කෙතරම් දවසක් මා ඉන්නදෝ </span></span><span class=\"cell\"><span class=\"chord\">Em</span><span class=\"lyric\">මේ වගේ දුකක් සිතේ ද</span></span><span class=\"cell\"><span class=\"chord\">Am</span><span class=\"lyric\">රා</span></span></div>",
+      "<div class=\"line\"><span class=\"cell\"><span class=\"chord\">D</span><span class=\"lyric\">සුළඟේ සැඟවී මා එන්නදෝ - </span></span><span class=\"cell\"><span class=\"chord\">G</span><span class=\"lyric\">මාගේ ප්‍රි</span></span><span class=\"cell\"><span class=\"chord\">D</span><span class=\"lyric\">යාවී සො</span></span><span class=\"cell\"><span class=\"chord\">G</span><span class=\"lyric\">යා</span></span></div>",
+      "<div class=\"line\"><span class=\"lyric-plain\"></span></div>",
+      "<div class=\"line\"><span class=\"cell\"><span class=\"chord\">G</span><span class=\"lyric\">මේ විසල්පුරේ ඉන්න රූ ළඳුන් සො</span></span><span class=\"cell\"><span class=\"chord\">D</span><span class=\"lyric\">යා</span></span></div>",
+      "<div class=\"line\"><span class=\"cell\"><span class=\"chord\">D</span><span class=\"lyric\">මා ළඟින් රැඳී ඉන්න යාළුවන් ගි</span></span><span class=\"cell\"><span class=\"chord\">G</span><span class=\"lyric\">යා</span></span></div>",
+      "<div class=\"line\"><span class=\"cell\"><span class=\"chord\">G</span><span class=\"lyric\">මට හොරා වගේ මගේ සිත කොහේ ගි</span></span><span class=\"cell\"><span class=\"chord\">D</span><span class=\"lyric\">යා</span></span></div>",
+      "<div class=\"line\"><span class=\"cell\"><span class=\"chord\">D</span><span class=\"lyric\">මාව හැර දමා මසිත ඔබ සොයා ගි</span></span><span class=\"cell\"><span class=\"chord\">G</span><span class=\"lyric\">යා</span></span></div>",
+      "<div class=\"line\"><span class=\"cell\"><span class=\"chord\">G</span><span class=\"lyric\">අඩ අඳුරේ - </span></span><span class=\"cell\"><span class=\"chord\">Bm</span><span class=\"lyric\">සිත වැල</span></span><span class=\"cell\"><span class=\"chord\">Am</span><span class=\"lyric\">පේ - </span></span><span class=\"cell\"><span class=\"chord\">Em</span><span class=\"lyric\">සිහිවී ඔ</span></span><span class=\"cell\"><span class=\"chord\">Bm</span><span class=\"lyric\">බේ ආද</span></span><span class=\"cell\"><span class=\"chord\">D</span><span class=\"lyric\">රේ</span></span><span class=\"cell\"><span class=\"chord\">B</span><span class=\"lyric\">...</span></span></div>",
+      "<div class=\"line\"><span class=\"lyric-plain\"></span></div>",
+      "<div class=\"line\"><span class=\"lyric-plain\">ඔබ මා හමුවූ අවසන් දිනේ....</span></div>",
+      "<div class=\"line\"><span class=\"lyric-plain\"></span></div>",
+      "<div class=\"line\"><span class=\"cell\"><span class=\"chord\">G</span><span class=\"lyric\">වාළුකා තලේ සීත දිය බිඳක් ව</span></span><span class=\"cell\"><span class=\"chord\">D</span><span class=\"lyric\">ගේ</span></span></div>",
+      "<div class=\"line\"><span class=\"cell\"><span class=\"chord\">D</span><span class=\"lyric\">ඈත ක්ෂිතිජයේ ඔබේ රූ මැවී ති</span></span><span class=\"cell\"><span class=\"chord\">G</span><span class=\"lyric\">යේ</span></span></div>",
+      "<div class=\"line\"><span class=\"cell\"><span class=\"chord\">G</span><span class=\"lyric\">මා සිතේ පුරා සුමුදු සිහිලසක් දැ</span></span><span class=\"cell\"><span class=\"chord\">D</span><span class=\"lyric\">නේ</span></span></div>",
+      "<div class=\"line\"><span class=\"cell\"><span class=\"chord\">D</span><span class=\"lyric\">ඔබ සොයා දුවන් එන්න මට නැතේ පි</span></span><span class=\"cell\"><span class=\"chord\">G</span><span class=\"lyric\">නේ</span></span></div>",
+      "<div class=\"line\"><span class=\"cell\"><span class=\"chord\">G</span><span class=\"lyric\">අඩ අඳුරේ - </span></span><span class=\"cell\"><span class=\"chord\">Bm</span><span class=\"lyric\">සිත වැල</span></span><span class=\"cell\"><span class=\"chord\">Am</span><span class=\"lyric\">පේ - </span></span><span class=\"cell\"><span class=\"chord\">Em</span><span class=\"lyric\">සිහිවී ඔ</span></span><span class=\"cell\"><span class=\"chord\">Bm</span><span class=\"lyric\">බේ ආද</span></span><span class=\"cell\"><span class=\"chord\">D</span><span class=\"lyric\">රේ</span></span><span class=\"cell\"><span class=\"chord\">B</span><span class=\"lyric\">...</span></span></div>"
+    ],
+    "filename": "oba_ma_hamuwu.txt"
+  },
+  {
+    "title": "Obe Adare",
+    "composer": "Composer",
+    "lyricist": "Lyricist",
+    "singer": "Mervin",
+    "sections": [
+      "<div class=\"line\"><span class=\"cell\"><span class=\"chord\">C</span><span class=\"lyric\">ඔබේ ආදරේ - </span></span><span class=\"cell\"><span class=\"chord\">G</span><span class=\"lyric\">ශිලා ලිපියක් </span></span><span class=\"cell\"><span class=\"chord\">C</span><span class=\"lyric\">වගේ</span></span></div>",
+      "<div class=\"line\"><span class=\"cell\"><span class=\"chord\">C</span><span class=\"lyric\">ඔබේ ආදරේ </span></span><span class=\"cell\"><span class=\"chord\">F</span><span class=\"lyric\">දෙවනි පෑතිස් </span></span><span class=\"cell\"><span class=\"chord\">C</span><span class=\"lyric\">රජ දවසේ</span></span></div>",
+      "<div class=\"line\"><span class=\"cell\"><span class=\"chord\">G</span><span class=\"lyric\">ශිලා ලිපියක් </span></span><span class=\"cell\"><span class=\"chord\">C</span><span class=\"lyric\">වාගේ - </span></span><span class=\"cell\"><span class=\"chord\">G</span><span class=\"lyric\">ශිලා ලිපියක් </span></span><span class=\"cell\"><span class=\"chord\">C</span><span class=\"lyric\">වගේ</span></span></div>",
+      "<div class=\"line\"><span class=\"lyric-plain\"></span></div>",
+      "<div class=\"line\"><span class=\"cell\"><span class=\"chord\">Cm</span><span class=\"lyric\">අව් වැසි වතුරෙන් </span></span><span class=\"cell\"><span class=\"chord\">Bb</span><span class=\"lyric\">පීඩිත වී - </span></span><span class=\"cell\"><span class=\"chord\">Fm</span><span class=\"lyric\">බිඳී තැනින් තැන </span></span><span class=\"cell\"><span class=\"chord\">Bb</span><span class=\"lyric\">අකුරු මැ</span></span><span class=\"cell\"><span class=\"chord\">Cm</span><span class=\"lyric\">කී</span></span></div>",
+      "<div class=\"line\"><span class=\"cell\"><span class=\"chord\">Eb</span><span class=\"lyric\">කියවා ගන්නට </span></span><span class=\"cell\"><span class=\"chord\">Bb</span><span class=\"lyric\">බෑ - වටහා ගන්නට </span></span><span class=\"cell\"><span class=\"chord\">Cm</span><span class=\"lyric\">බෑ</span></span></div>",
+      "<div class=\"line\"><span class=\"cell\"><span class=\"chord\">Ab</span><span class=\"lyric\">කියවා ගන්නට </span></span><span class=\"cell\"><span class=\"chord\">Eb</span><span class=\"lyric\">බෑ - </span></span><span class=\"cell\"><span class=\"chord\">Bb</span><span class=\"lyric\">වටහා ගන්නට </span></span><span class=\"cell\"><span class=\"chord\">Cm</span><span class=\"lyric\">බෑ</span></span></div>",
+      "<div class=\"line\"><span class=\"lyric-plain\"></span></div>",
+      "<div class=\"line\"><span class=\"cell\"><span class=\"chord\">Cm</span><span class=\"lyric\">මහ වන වදුලේ </span></span><span class=\"cell\"><span class=\"chord\">Bb</span><span class=\"lyric\">අසරණ වී - </span></span><span class=\"cell\"><span class=\"chord\">Fm</span><span class=\"lyric\">සියවස් ගණනක් </span></span><span class=\"cell\"><span class=\"chord\">Bb</span><span class=\"lyric\">නටඹුන් </span></span><span class=\"cell\"><span class=\"chord\">Cm</span><span class=\"lyric\">වී</span></span></div>",
+      "<div class=\"line\"><span class=\"cell\"><span class=\"chord\">Eb</span><span class=\"lyric\">ඉස්පිළි පාපිළි </span></span><span class=\"cell\"><span class=\"chord\">Bb</span><span class=\"lyric\">නෑ - බෙදුනු වදන් වැකි </span></span><span class=\"cell\"><span class=\"chord\">Cm</span><span class=\"lyric\">නෑ</span></span></div>",
+      "<div class=\"line\"><span class=\"cell\"><span class=\"chord\">Ab</span><span class=\"lyric\">ඉස්පිළි පාපිළි </span></span><span class=\"cell\"><span class=\"chord\">Eb</span><span class=\"lyric\">නෑ - </span></span><span class=\"cell\"><span class=\"chord\">Bb</span><span class=\"lyric\">බෙදුනු වදන් වැකි </span></span><span class=\"cell\"><span class=\"chord\">Cm</span><span class=\"lyric\">නෑ</span></span></div>"
+    ],
+    "filename": "obe_adare.txt"
+  },
+  {
+    "title": "Punchi Kurulu Kuduwe",
+    "composer": "Composer",
+    "lyricist": "Lyricist",
+    "singer": "Saman de Silva",
+    "sections": [
+      "<div class=\"line\"><span class=\"cell\"><span class=\"chord\">G</span><span class=\"lyric\">පුංචි කුරුළු කූඩුවේ උන් ඉන්නව </span></span><span class=\"cell\"><span class=\"chord\">D</span><span class=\"lyric\">පාඩුවේ</span></span></div>",
+      "<div class=\"line\"><span class=\"cell\"><span class=\"chord\">C</span><span class=\"lyric\">එපා මුගුරු </span></span><span class=\"cell\"><span class=\"chord\">G</span><span class=\"lyric\">විසිකරන්න </span></span><span class=\"cell\"><span class=\"chord\">D7</span><span class=\"lyric\">නිකං ඉඳිං </span></span><span class=\"cell\"><span class=\"chord\">G</span><span class=\"lyric\">යාළුවේ //</span></span></div>",
+      "<div class=\"line\"><span class=\"lyric-plain\"></span></div>",
+      "<div class=\"line\"><span class=\"cell\"><span class=\"chord\">G</span><span class=\"lyric\">ගසේ හොඳම තැනක් බලා - උන් කූඩුව </span></span><span class=\"cell\"><span class=\"chord\">D</span><span class=\"lyric\">හැදුවේ</span></span></div>",
+      "<div class=\"line\"><span class=\"cell\"><span class=\"chord\">Am</span><span class=\"lyric\">දරු පැටවුන් </span></span><span class=\"cell\"><span class=\"chord\">G</span><span class=\"lyric\">රැකගන්නයි </span></span><span class=\"cell\"><span class=\"chord\">D</span><span class=\"lyric\">මේ ලෙස දුක් </span></span><span class=\"cell\"><span class=\"chord\">G</span><span class=\"lyric\">වින්ඳේ</span></span></div>",
+      "<div class=\"line\"><span class=\"cell\"><span class=\"chord\">G</span><span class=\"lyric\">කිචි බිචි ගා පුංචි පැටව් ගීයක් රස </span></span><span class=\"cell\"><span class=\"chord\">D</span><span class=\"lyric\">කෙරුවේ</span></span></div>",
+      "<div class=\"line\"><span class=\"cell\"><span class=\"chord\">Am</span><span class=\"lyric\">මොකෝ යාළු </span></span><span class=\"cell\"><span class=\"chord\">G</span><span class=\"lyric\">අනේ උන්ට </span></span><span class=\"cell\"><span class=\"chord\">D</span><span class=\"lyric\">ගල් කැට විසි </span></span><span class=\"cell\"><span class=\"chord\">G</span><span class=\"lyric\">කෙරුවේ</span></span></div>",
+      "<div class=\"line\"><span class=\"lyric-plain\"></span></div>",
+      "<div class=\"line\"><span class=\"cell\"><span class=\"chord\">G</span><span class=\"lyric\">නුඹේ ගලක් වැදුන සැණින් කූඩුව යයි </span></span><span class=\"cell\"><span class=\"chord\">D</span><span class=\"lyric\">කැඩිලා</span></span></div>",
+      "<div class=\"line\"><span class=\"cell\"><span class=\"chord\">Am</span><span class=\"lyric\">පුංචි පැටව් </span></span><span class=\"cell\"><span class=\"chord\">G</span><span class=\"lyric\">බිම වැටුනොත් </span></span><span class=\"cell\"><span class=\"chord\">D</span><span class=\"lyric\">අත්තටු යයි </span></span><span class=\"cell\"><span class=\"chord\">G</span><span class=\"lyric\">රිදිලා</span></span></div>",
+      "<div class=\"line\"><span class=\"cell\"><span class=\"chord\">G</span><span class=\"lyric\">මැරී ගියොත් දරු පැටවුන් කුරුළු මවුන් </span></span><span class=\"cell\"><span class=\"chord\">D</span><span class=\"lyric\">දැකලා</span></span></div>",
+      "<div class=\"line\"><span class=\"cell\"><span class=\"chord\">Am</span><span class=\"lyric\">ඇගේ පපුව </span></span><span class=\"cell\"><span class=\"chord\">G</span><span class=\"lyric\">පැලී හැලෙයි </span></span><span class=\"cell\"><span class=\"chord\">D</span><span class=\"lyric\">ලේ ගංඟා </span></span><span class=\"cell\"><span class=\"chord\">G</span><span class=\"lyric\">ගලලා</span></span></div>"
+    ],
+    "filename": "punchi_kurulu_kuduwe.txt"
+  },
+  {
+    "title": "Rathriya Manaram Kiya",
+    "composer": "Pasan",
+    "lyricist": "Tharindu",
+    "singer": "Susantha",
+    "sections": [
+      "<div class=\"line\"><span class=\"cell\"><span class=\"chord\">C</span><span class=\"lyric\">රාත්‍රිය මන</span></span><span class=\"cell\"><span class=\"chord\">Am</span><span class=\"lyric\">රම් කියා </span></span><span class=\"cell\"><span class=\"chord\">F</span><span class=\"lyric\">සඳට තරුවට </span></span><span class=\"cell\"><span class=\"chord\">G</span><span class=\"lyric\">කවි ලියා</span></span></div>",
+      "<div class=\"line\"><span class=\"cell\"><span class=\"chord\">G</span><span class=\"lyric\">මාත් මගෙ හිත හදාගන්නනම් </span></span><span class=\"cell\"><span class=\"chord\">F</span><span class=\"lyric\">නුඹත් මා ළඟ </span></span><span class=\"cell\"><span class=\"chord\">C</span><span class=\"lyric\">නැති නිසා //</span></span></div>",
+      "<div class=\"line\"><span class=\"lyric-plain\"></span></div>",
+      "<div class=\"line\"><span class=\"cell\"><span class=\"chord\">C</span><span class=\"lyric\">මගේ කවියක </span></span><span class=\"cell\"><span class=\"chord\">Am</span><span class=\"lyric\">පද ගයා </span></span><span class=\"cell\"><span class=\"chord\">F</span><span class=\"lyric\">දෑස් දෙකොනේ </span></span><span class=\"cell\"><span class=\"chord\">G</span><span class=\"lyric\">තෙත තියා</span></span></div>",
+      "<div class=\"line\"><span class=\"cell\"><span class=\"chord\">G</span><span class=\"lyric\">නුඹත් රෑ නිදි වරාගෙන ඇති </span></span><span class=\"cell\"><span class=\"chord\">F</span><span class=\"lyric\">මාත් නුඹ ළඟ </span></span><span class=\"cell\"><span class=\"chord\">C</span><span class=\"lyric\">නැති නිසා</span></span></div>",
+      "<div class=\"line\"><span class=\"lyric-plain\"></span></div>",
+      "<div class=\"line\"><span class=\"lyric-plain\">රාත්‍රිය ...</span></div>",
+      "<div class=\"line\"><span class=\"lyric-plain\"></span></div>",
+      "<div class=\"line\"><span class=\"cell\"><span class=\"chord\">C</span><span class=\"lyric\">හිරු සඳුත් හමු</span></span><span class=\"cell\"><span class=\"chord\">Am</span><span class=\"lyric\">වෙන්නැතේ </span></span><span class=\"cell\"><span class=\"chord\">F</span><span class=\"lyric\">එකම අහසේ </span></span><span class=\"cell\"><span class=\"chord\">G</span><span class=\"lyric\">පායනා</span></span></div>",
+      "<div class=\"line\"><span class=\"cell\"><span class=\"chord\">G</span><span class=\"lyric\">ඉතිං දුක් වෙන්නේ කිමද අපි </span></span><span class=\"cell\"><span class=\"chord\">F</span><span class=\"lyric\">දිනක් එයි අප </span></span><span class=\"cell\"><span class=\"chord\">C</span><span class=\"lyric\">හමුවනා</span></span></div>",
+      "<div class=\"line\"><span class=\"lyric-plain\"></span></div>",
+      "<div class=\"line\"><span class=\"lyric-plain\">රාත්‍රිය ...</span></div>"
+    ],
+    "filename": "rathriya_manaram.txt"
+  },
+  {
+    "title": "Sanasen nalawenna",
+    "composer": "Coposer",
+    "lyricist": "Lyricist",
+    "singer": "Athula",
+    "sections": [
+      "<div class=\"line\"><span class=\"cell\"><span class=\"chord\">C</span><span class=\"lyric\">සැනසෙන් නැළ</span></span><span class=\"cell\"><span class=\"chord\">G</span><span class=\"lyric\">වෙන්න සුදෝ</span></span><span class=\"cell\"><span class=\"chord\">C</span><span class=\"lyric\"> //</span></span></div>",
+      "<div class=\"line\"><span class=\"cell\"><span class=\"chord\">C</span><span class=\"lyric\">රසකර </span></span><span class=\"cell\"><span class=\"chord\">G</span><span class=\"lyric\">ගී ගයන වෙ</span></span><span class=\"cell\"><span class=\"chord\">C</span><span class=\"lyric\">ලේ //</span></span></div>",
+      "<div class=\"line\"><span class=\"cell\"><span class=\"chord\">C</span><span class=\"lyric\">සැනසෙන් නැළ</span></span><span class=\"cell\"><span class=\"chord\">G</span><span class=\"lyric\">වෙන්න සු</span></span><span class=\"cell\"><span class=\"chord\">C</span><span class=\"lyric\">දෝ</span></span></div>",
+      "<div class=\"line\"><span class=\"lyric-plain\"></span></div>",
+      "<div class=\"line\"><span class=\"cell\"><span class=\"chord\">C</span><span class=\"lyric\">කොවුලන්ගෙ </span></span><span class=\"cell\"><span class=\"chord\">C7</span><span class=\"lyric\">ගී අ</span></span><span class=\"cell\"><span class=\"chord\">F</span><span class=\"lyric\">සාලා..</span></span></div>",
+      "<div class=\"line\"><span class=\"cell\"><span class=\"chord\">G</span><span class=\"lyric\">නිදියයි සිහින බ</span></span><span class=\"cell\"><span class=\"chord\">C</span><span class=\"lyric\">ලාලා //</span></span></div>",
+      "<div class=\"line\"><span class=\"prefix\">රසකර </span><span class=\"cell\"><span class=\"chord\">G</span><span class=\"lyric\">ගී ගයන වෙ</span></span><span class=\"cell\"><span class=\"chord\">C</span><span class=\"lyric\">ලේ //</span></span></div>",
+      "<div class=\"line\"><span class=\"cell\"><span class=\"chord\">C</span><span class=\"lyric\">සැනසෙන් නැළ</span></span><span class=\"cell\"><span class=\"chord\">G</span><span class=\"lyric\">වෙන්න සු</span></span><span class=\"cell\"><span class=\"chord\">C</span><span class=\"lyric\">දෝ..</span></span></div>",
+      "<div class=\"line\"><span class=\"lyric-plain\"></span></div>",
+      "<div class=\"line\"><span class=\"cell\"><span class=\"chord\">C</span><span class=\"lyric\">මදනළ </span></span><span class=\"cell\"><span class=\"chord\">C7</span><span class=\"lyric\">හෙමිහිට </span></span><span class=\"cell\"><span class=\"chord\">F</span><span class=\"lyric\">හමනා</span></span></div>",
+      "<div class=\"line\"><span class=\"cell\"><span class=\"chord\">G</span><span class=\"lyric\">තුරුලිය ටික ටික </span></span><span class=\"cell\"><span class=\"chord\">C</span><span class=\"lyric\">සොලවා //</span></span></div>",
+      "<div class=\"line\"><span class=\"cell\"><span class=\"chord\">C</span><span class=\"lyric\">රසකර </span></span><span class=\"cell\"><span class=\"chord\">G</span><span class=\"lyric\">ගී ගයන වෙ</span></span><span class=\"cell\"><span class=\"chord\">C</span><span class=\"lyric\">ලේ.. //</span></span></div>",
+      "<div class=\"line\"><span class=\"cell\"><span class=\"chord\">C</span><span class=\"lyric\">සැනසෙන් නැළ</span></span><span class=\"cell\"><span class=\"chord\">G</span><span class=\"lyric\">වෙන්න සු</span></span><span class=\"cell\"><span class=\"chord\">C</span><span class=\"lyric\">දෝ</span></span></div>"
+    ],
+    "filename": "sanasen_nalawenna.txt"
+  },
+  {
+    "title": "Seegiri Sukumaliye",
+    "composer": "Composer",
+    "lyricist": "Lyricist",
+    "singer": "CT",
+    "sections": [
+      "<div class=\"line\"><span class=\"cell\"><span class=\"chord\">G</span><span class=\"lyric\">සීගිරි සුකුමාලියේ - හෙළ රජ සම</span></span><span class=\"cell\"><span class=\"chord\">D</span><span class=\"lyric\">යේ</span></span></div>",
+      "<div class=\"line\"><span class=\"prefix\">මතකද අපි පාවුනා - පෙම් අම නදි</span><span class=\"cell\"><span class=\"chord\">G</span><span class=\"lyric\">යේ</span></span></div>",
+      "<div class=\"line\"><span class=\"prefix\">ලස්සන ඔබෙ රූපයේ - </span><span class=\"cell\"><span class=\"chord\">G7</span><span class=\"lyric\">නෙත සිත බැඳු</span></span><span class=\"cell\"><span class=\"chord\">C</span><span class=\"lyric\">නේ</span></span></div>",
+      "<div class=\"line\"><span class=\"cell\"><span class=\"chord\">Am</span><span class=\"lyric\">නාමය ශ්‍රී </span></span><span class=\"cell\"><span class=\"chord\">G</span><span class=\"lyric\">ලංකාවේ </span></span><span class=\"cell\"><span class=\"chord\">D</span><span class=\"lyric\">රැවු දෙන්නේ</span></span></div>",
+      "<div class=\"line\"><span class=\"prefix\">ඔබගෙනි සොඳු</span><span class=\"cell\"><span class=\"chord\">G</span><span class=\"lyric\">රේ</span></span></div>",
+      "<div class=\"line\"><span class=\"lyric-plain\"></span></div>",
+      "<div class=\"line\"><span class=\"cell\"><span class=\"chord\">G</span><span class=\"lyric\">අතකින් මල් දරාලා - හසරැලි පා</span></span><span class=\"cell\"><span class=\"chord\">D</span><span class=\"lyric\">ලා</span></span></div>",
+      "<div class=\"line\"><span class=\"prefix\">සුසිනිඳු සළු ඔ</span><span class=\"cell\"><span class=\"chord\">D7</span><span class=\"lyric\">තාලා - විලවුන් ගා</span></span><span class=\"cell\"><span class=\"chord\">G</span><span class=\"lyric\">ලා</span></span></div>",
+      "<div class=\"line\"><span class=\"prefix\">ගෝමර පෙති විදාලා - දි</span><span class=\"cell\"><span class=\"chord\">G7</span><span class=\"lyric\">ස්නය දී</span></span><span class=\"cell\"><span class=\"chord\">C</span><span class=\"lyric\">ලා</span></span></div>",
+      "<div class=\"line\"><span class=\"cell\"><span class=\"chord\">Am</span><span class=\"lyric\">ආදරයෙන් </span></span><span class=\"cell\"><span class=\"chord\">D</span><span class=\"lyric\">උන් කාලේ මේ දෑතේ</span></span></div>",
+      "<div class=\"line\"><span class=\"prefix\">සිතුවම් වී</span><span class=\"cell\"><span class=\"chord\">G</span><span class=\"lyric\">ලා</span></span></div>",
+      "<div class=\"line\"><span class=\"lyric-plain\"></span></div>",
+      "<div class=\"line\"><span class=\"cell\"><span class=\"chord\">G</span><span class=\"lyric\">ඔබෙ රුව නැත මැකීලා - කල්ගත වී</span></span><span class=\"cell\"><span class=\"chord\">D</span><span class=\"lyric\">ලා</span></span></div>",
+      "<div class=\"line\"><span class=\"prefix\">මුලු දෙනෙතින් බලාලා - </span><span class=\"cell\"><span class=\"chord\">D7</span><span class=\"lyric\">සිත සැනසී</span></span><span class=\"cell\"><span class=\"chord\">G</span><span class=\"lyric\">ලා</span></span></div>",
+      "<div class=\"line\"><span class=\"prefix\">ජන කවියක් ගොතාලා - </span><span class=\"cell\"><span class=\"chord\">G7</span><span class=\"lyric\">කවි පද මා</span></span><span class=\"cell\"><span class=\"chord\">C</span><span class=\"lyric\">ලා</span></span></div>",
+      "<div class=\"line\"><span class=\"cell\"><span class=\"chord\">Am</span><span class=\"lyric\">කී විලසින් ම</span></span><span class=\"cell\"><span class=\"chord\">D</span><span class=\"lyric\">ම් ගයමී රන්වන් ගී</span></span></div>",
+      "<div class=\"line\"><span class=\"prefix\">වත සපුරා</span><span class=\"cell\"><span class=\"chord\">G</span><span class=\"lyric\">ලා</span></span></div>"
+    ],
+    "filename": "seegiri_sukumaliye.txt"
+  },
+  {
+    "title": "Senehasa Ran Sinhasana",
+    "composer": "Dayarathne",
+    "lyricist": "Ranasighe",
+    "singer": "Thyaga",
+    "sections": [
+      "<div class=\"line\"><span class=\"cell\"><span class=\"chord\">C</span><span class=\"lyric\">සෙනෙහස රන් </span></span><span class=\"cell\"><span class=\"chord\">C7</span><span class=\"lyric\">සිංහාසන </span></span><span class=\"cell\"><span class=\"chord\">G</span><span class=\"lyric\">හදේ මැවෙන</span></span><span class=\"cell\"><span class=\"chord\">Dm</span><span class=\"lyric\">වා</span></span></div>",
+      "<div class=\"line\"><span class=\"cell\"><span class=\"chord\">G</span><span class=\"lyric\">මතු සක්විති </span></span><span class=\"cell\"><span class=\"chord\">Dm</span><span class=\"lyric\">රජෙකු වගේ </span></span><span class=\"cell\"><span class=\"chord\">G</span><span class=\"lyric\">උකුලෙ නිදන</span></span><span class=\"cell\"><span class=\"chord\">C</span><span class=\"lyric\">වා</span></span></div>",
+      "<div class=\"line\"><span class=\"prefix\">මගේ </span><span class=\"cell\"><span class=\"chord\">G</span><span class=\"lyric\">උකුලෙ නිදන</span></span><span class=\"cell\"><span class=\"chord\">C</span><span class=\"lyric\">වා</span></span></div>",
+      "<div class=\"line\"><span class=\"lyric-plain\"></span></div>",
+      "<div class=\"line\"><span class=\"cell\"><span class=\"chord\">F</span><span class=\"lyric\">සුවඳ හැමූ </span></span><span class=\"cell\"><span class=\"chord\">C</span><span class=\"lyric\">යහන් ගැබේ </span></span><span class=\"cell\"><span class=\"chord\">C7</span><span class=\"lyric\">සෙමෙර සලන</span></span><span class=\"cell\"><span class=\"chord\">F</span><span class=\"lyric\">වා</span></span></div>",
+      "<div class=\"line\"><span class=\"cell\"><span class=\"chord\">C</span><span class=\"lyric\">වෙසක් මහේ </span></span><span class=\"cell\"><span class=\"chord\">G</span><span class=\"lyric\">මලක් වගේ </span></span><span class=\"cell\"><span class=\"chord\">G7</span><span class=\"lyric\">කුමරු නිදන</span></span><span class=\"cell\"><span class=\"chord\">C</span><span class=\"lyric\">වා</span></span></div>",
+      "<div class=\"line\"><span class=\"cell\"><span class=\"chord\">F</span><span class=\"lyric\">කිඹුල්වතින් එන පවනේ </span></span><span class=\"cell\"><span class=\"chord\">C</span><span class=\"lyric\">සුවය දැ</span></span><span class=\"cell\"><span class=\"chord\">C7</span><span class=\"lyric\">නෙන</span></span><span class=\"cell\"><span class=\"chord\">F</span><span class=\"lyric\">වා</span></span></div>",
+      "<div class=\"line\"><span class=\"cell\"><span class=\"chord\">C</span><span class=\"lyric\">පිනැති පුතුන් </span></span><span class=\"cell\"><span class=\"chord\">G</span><span class=\"lyric\">උපන් රටට </span></span><span class=\"cell\"><span class=\"chord\">G7</span><span class=\"lyric\">ඉසුරු පිරෙන</span></span><span class=\"cell\"><span class=\"chord\">C</span><span class=\"lyric\">වා</span></span></div>",
+      "<div class=\"line\"><span class=\"lyric-plain\"></span></div>",
+      "<div class=\"line\"><span class=\"cell\"><span class=\"chord\">F</span><span class=\"lyric\">මධු ගංගා </span></span><span class=\"cell\"><span class=\"chord\">C</span><span class=\"lyric\">දෙතොල් අතර </span></span><span class=\"cell\"><span class=\"chord\">C7</span><span class=\"lyric\">හැපී බිඳෙන්</span></span><span class=\"cell\"><span class=\"chord\">F</span><span class=\"lyric\">නේ</span></span></div>",
+      "<div class=\"line\"><span class=\"cell\"><span class=\"chord\">C</span><span class=\"lyric\">රුවන් පුළුන් </span></span><span class=\"cell\"><span class=\"chord\">G</span><span class=\"lyric\">වළා විමන් ම</span></span><span class=\"cell\"><span class=\"chord\">G7</span><span class=\"lyric\">ත දැවටෙන්</span></span><span class=\"cell\"><span class=\"chord\">C</span><span class=\"lyric\">නේ</span></span></div>",
+      "<div class=\"line\"><span class=\"cell\"><span class=\"chord\">F</span><span class=\"lyric\">පොකුරු පොකුරු </span></span><span class=\"cell\"><span class=\"chord\">C</span><span class=\"lyric\">මල් ගෙන සුර </span></span><span class=\"cell\"><span class=\"chord\">C7</span><span class=\"lyric\">සේනා එන්</span></span><span class=\"cell\"><span class=\"chord\">F</span><span class=\"lyric\">නේ</span></span></div>",
+      "<div class=\"line\"><span class=\"cell\"><span class=\"chord\">C</span><span class=\"lyric\">මෙවන් සිහින් </span></span><span class=\"cell\"><span class=\"chord\">G</span><span class=\"lyric\">දැකලාදෝ </span></span><span class=\"cell\"><span class=\"chord\">G7</span><span class=\"lyric\">පුතු හිනැහෙන්</span></span><span class=\"cell\"><span class=\"chord\">C</span><span class=\"lyric\">නේ</span></span></div>"
+    ],
+    "filename": "senehasa_ran.txt"
+  },
+  {
+    "title": "Siriyalatha",
+    "composer": "Coposer",
+    "lyricist": "Lyricist",
+    "singer": "Sangeeth",
+    "sections": [
+      "<div class=\"line\"><span class=\"cell\"><span class=\"chord\">F</span><span class=\"lyric\">සිරිය ලතා සිරිය ලතා </span></span><span class=\"cell\"><span class=\"chord\">Bb</span><span class=\"lyric\">මගේ සිත ගත් </span></span><span class=\"cell\"><span class=\"chord\">F</span><span class=\"lyric\">සුදු කෙල්ලේ</span></span></div>",
+      "<div class=\"line\"><span class=\"cell\"><span class=\"chord\">Bb</span><span class=\"lyric\">මගේ පෙම් ලොව </span></span><span class=\"cell\"><span class=\"chord\">F</span><span class=\"lyric\">එලිය කලේ</span></span></div>",
+      "<div class=\"line\"><span class=\"cell\"><span class=\"chord\">F</span><span class=\"lyric\">ඔබේ පෙම් සි</span></span><span class=\"cell\"><span class=\"chord\">Am</span><span class=\"lyric\">නාවයි ඔ</span></span><span class=\"cell\"><span class=\"chord\">C</span><span class=\"lyric\">බෙ සිනා</span></span><span class=\"cell\"><span class=\"chord\">F</span><span class=\"lyric\">වයි //</span></span></div>",
+      "<div class=\"line\"><span class=\"lyric-plain\"></span></div>",
+      "<div class=\"line\"><span class=\"cell\"><span class=\"chord\">F</span><span class=\"lyric\">පිපුණා හද පිපුනා </span></span><span class=\"cell\"><span class=\"chord\">F</span><span class=\"lyric\">හද පිපුනා පිපුනා </span></span><span class=\"cell\"><span class=\"chord\">Bb</span><span class=\"lyric\">ප්‍රේම ම</span></span><span class=\"cell\"><span class=\"chord\">F</span><span class=\"lyric\">ලක්</span></span></div>",
+      "<div class=\"line\"><span class=\"cell\"><span class=\"chord\">F</span><span class=\"lyric\">දැනුනා මට දැනුනා </span></span><span class=\"cell\"><span class=\"chord\">F</span><span class=\"lyric\">මට දැනුනා දැනුනා </span></span><span class=\"cell\"><span class=\"chord\">Bb</span><span class=\"lyric\">පෙම් සුව</span></span><span class=\"cell\"><span class=\"chord\">F</span><span class=\"lyric\">ඳක්</span></span></div>",
+      "<div class=\"line\"><span class=\"cell\"><span class=\"chord\">F</span><span class=\"lyric\">මගෙ පෙම් ලෝ</span></span><span class=\"cell\"><span class=\"chord\">Bb</span><span class=\"lyric\">කේ රාජිනි </span></span><span class=\"cell\"><span class=\"chord\">C</span><span class=\"lyric\">ඔබයි ආද</span></span><span class=\"cell\"><span class=\"chord\">F</span><span class=\"lyric\">රී ආ...</span></span></div>",
+      "<div class=\"line\"><span class=\"cell\"><span class=\"chord\">F</span><span class=\"lyric\">මගේ පෙම් ලෝ</span></span><span class=\"cell\"><span class=\"chord\">Bb</span><span class=\"lyric\">කේ රාජිනි </span></span><span class=\"cell\"><span class=\"chord\">C7</span><span class=\"lyric\">ඔබයි ආද</span></span><span class=\"cell\"><span class=\"chord\">F</span><span class=\"lyric\">රී</span></span></div>",
+      "<div class=\"line\"><span class=\"lyric-plain\"></span></div>",
+      "<div class=\"line\"><span class=\"cell\"><span class=\"chord\">F</span><span class=\"lyric\">කෙල්ලේ සුදු කෙල්ලේ </span></span><span class=\"cell\"><span class=\"chord\">F</span><span class=\"lyric\">සුදු කෙල්ලේ කෙල්ලේ </span></span><span class=\"cell\"><span class=\"chord\">Bb</span><span class=\"lyric\">මගේ කෙල්</span></span><span class=\"cell\"><span class=\"chord\">F</span><span class=\"lyric\">ලේ</span></span></div>",
+      "<div class=\"line\"><span class=\"cell\"><span class=\"chord\">F</span><span class=\"lyric\">ගොතලා මල් ගොතලා </span></span><span class=\"cell\"><span class=\"chord\">F</span><span class=\"lyric\">මම ගොතලා ගොතලා </span></span><span class=\"cell\"><span class=\"chord\">Bb</span><span class=\"lyric\">පෙම් මල් වැ</span></span><span class=\"cell\"><span class=\"chord\">F</span><span class=\"lyric\">ල්</span></span></div>",
+      "<div class=\"line\"><span class=\"cell\"><span class=\"chord\">F</span><span class=\"lyric\">පළඳා නුඹ </span></span><span class=\"cell\"><span class=\"chord\">Bb</span><span class=\"lyric\">කැන්දා ගෙන යමි </span></span><span class=\"cell\"><span class=\"chord\">C</span><span class=\"lyric\">මගේ රත්තර</span></span><span class=\"cell\"><span class=\"chord\">F</span><span class=\"lyric\">න් ආ...</span></span></div>",
+      "<div class=\"line\"><span class=\"cell\"><span class=\"chord\">F</span><span class=\"lyric\">පළඳා නුඹ </span></span><span class=\"cell\"><span class=\"chord\">Bb</span><span class=\"lyric\">කැන්දා ගෙන යමි </span></span><span class=\"cell\"><span class=\"chord\">C7</span><span class=\"lyric\">මගේ රත්තර</span></span><span class=\"cell\"><span class=\"chord\">F</span><span class=\"lyric\">න්</span></span></div>"
+    ],
+    "filename": "siriyalatha.txt"
+  },
+  {
+    "title": "Snow Flakes",
+    "composer": "Unknown",
+    "lyricist": "Unknown",
+    "singer": "Unknown",
+    "sections": [
+      "<div class=\"line\"><span class=\"cell\"><span class=\"chord\">G</span><span class=\"lyric\">    </span></span><span class=\"cell\"><span class=\"chord\">F#m</span><span class=\"lyric\">    </span></span><span class=\"cell\"><span class=\"chord\">Em</span><span class=\"lyric\">   </span></span><span class=\"cell\"><span class=\"chord\">A</span><span class=\"lyric\"></span></span></div>",
+      "<div class=\"line\"><span class=\"cell\"><span class=\"chord\">D</span><span class=\"lyric\"></span></span></div>",
+      "<div class=\"line\"><span class=\"lyric-plain\"></span></div>",
+      "<div class=\"line\"><span class=\"cell\"><span class=\"chord\">D</span><span class=\"lyric\">Snowflake, </span></span><span class=\"cell\"><span class=\"chord\">F#m</span><span class=\"lyric\">snowflake, </span></span><span class=\"cell\"><span class=\"chord\">G</span><span class=\"lyric\">little </span></span><span class=\"cell\"><span class=\"chord\">D</span><span class=\"lyric\">snowflake.</span></span></div>",
+      "<div class=\"line\"><span class=\"cell\"><span class=\"chord\">G</span><span class=\"lyric\">Little </span></span><span class=\"cell\"><span class=\"chord\">D</span><span class=\"lyric\">snowflake </span></span><span class=\"cell\"><span class=\"chord\">Em</span><span class=\"lyric\">falling from the </span></span><span class=\"cell\"><span class=\"chord\">A</span><span class=\"lyric\">sky.</span></span></div>",
+      "<div class=\"line\"><span class=\"cell\"><span class=\"chord\">D</span><span class=\"lyric\">Snowflake, </span></span><span class=\"cell\"><span class=\"chord\">F#m</span><span class=\"lyric\">snowflake, </span></span><span class=\"cell\"><span class=\"chord\">G</span><span class=\"lyric\">little </span></span><span class=\"cell\"><span class=\"chord\">D</span><span class=\"lyric\">snowflake.</span></span></div>",
+      "<div class=\"line\"><span class=\"cell\"><span class=\"chord\">G</span><span class=\"lyric\">Falling, falling, </span></span><span class=\"cell\"><span class=\"chord\">F#m</span><span class=\"lyric\">falling, falling,</span></span></div>",
+      "<div class=\"line\"><span class=\"prefix\">falling, </span><span class=\"cell\"><span class=\"chord\">Em</span><span class=\"lyric\">falling </span></span><span class=\"cell\"><span class=\"chord\">A</span><span class=\"lyric\">on my hea</span></span><span class=\"cell\"><span class=\"chord\">D</span><span class=\"lyric\">d.</span></span></div>",
+      "<div class=\"line\"><span class=\"lyric-plain\"></span></div>",
+      "<div class=\"line\"><span class=\"cell\"><span class=\"chord\">D</span><span class=\"lyric\">Snowflake, </span></span><span class=\"cell\"><span class=\"chord\">F#m</span><span class=\"lyric\">snowflake, </span></span><span class=\"cell\"><span class=\"chord\">G</span><span class=\"lyric\">little </span></span><span class=\"cell\"><span class=\"chord\">D</span><span class=\"lyric\">snowflake.</span></span></div>",
+      "<div class=\"line\"><span class=\"cell\"><span class=\"chord\">G</span><span class=\"lyric\">Little </span></span><span class=\"cell\"><span class=\"chord\">D</span><span class=\"lyric\">snowflake </span></span><span class=\"cell\"><span class=\"chord\">Em</span><span class=\"lyric\">falling from the </span></span><span class=\"cell\"><span class=\"chord\">A</span><span class=\"lyric\">sky.</span></span></div>",
+      "<div class=\"line\"><span class=\"cell\"><span class=\"chord\">D</span><span class=\"lyric\">Snowflake, </span></span><span class=\"cell\"><span class=\"chord\">F#m</span><span class=\"lyric\">snowflake, </span></span><span class=\"cell\"><span class=\"chord\">G</span><span class=\"lyric\">little </span></span><span class=\"cell\"><span class=\"chord\">D</span><span class=\"lyric\">snowflake.</span></span></div>",
+      "<div class=\"line\"><span class=\"cell\"><span class=\"chord\">G</span><span class=\"lyric\">Falling, falling, </span></span><span class=\"cell\"><span class=\"chord\">F#m</span><span class=\"lyric\">falling, falling,</span></span></div>",
+      "<div class=\"line\"><span class=\"cell\"><span class=\"chord\">Em</span><span class=\"lyric\">falling, falling </span></span><span class=\"cell\"><span class=\"chord\">A</span><span class=\"lyric\">on my nos</span></span><span class=\"cell\"><span class=\"chord\">D</span><span class=\"lyric\">e.</span></span></div>"
+    ],
+    "filename": "snow_flakes.txt"
+  },
+  {
+    "title": "Uthuru Kone",
+    "composer": "Composer",
+    "lyricist": "Lyricist",
+    "singer": "Kapuge",
+    "sections": [
+      "<div class=\"line\"><span class=\"cell\"><span class=\"chord\">F</span><span class=\"lyric\">උතුරු කොනේ </span></span><span class=\"cell\"><span class=\"chord\">C</span><span class=\"lyric\">නුඹ හිනැහෙන් </span></span><span class=\"cell\"><span class=\"chord\">F</span><span class=\"lyric\">නඩරාජා </span></span><span class=\"cell\"><span class=\"chord\">Gm</span><span class=\"lyric\">මල්ලියේ</span></span></div>",
+      "<div class=\"line\"><span class=\"cell\"><span class=\"chord\">Bb</span><span class=\"lyric\">දකුණු කොනේ </span></span><span class=\"cell\"><span class=\"chord\">Am</span><span class=\"lyric\">නුඹ හිනැහෙන් </span></span><span class=\"cell\"><span class=\"chord\">C</span><span class=\"lyric\">සුමනසිරී </span></span><span class=\"cell\"><span class=\"chord\">F</span><span class=\"lyric\">මල්ලියේ</span></span></div>",
+      "<div class=\"line\"><span class=\"cell\"><span class=\"chord\">F</span><span class=\"lyric\">උතුරු කොනේ </span></span><span class=\"cell\"><span class=\"chord\">C</span><span class=\"lyric\">නුඹ හිනැහෙන් </span></span><span class=\"cell\"><span class=\"chord\">F</span><span class=\"lyric\">සෙල්ලම්මා </span></span><span class=\"cell\"><span class=\"chord\">Gm</span><span class=\"lyric\">නංඟියේ</span></span></div>",
+      "<div class=\"line\"><span class=\"cell\"><span class=\"chord\">Bb</span><span class=\"lyric\">දකුණු කොනේ </span></span><span class=\"cell\"><span class=\"chord\">Am</span><span class=\"lyric\">නුඹ හිනැහෙන් </span></span><span class=\"cell\"><span class=\"chord\">C</span><span class=\"lyric\">සෙනෙහෙලතා </span></span><span class=\"cell\"><span class=\"chord\">F</span><span class=\"lyric\">නංගියේ</span></span></div>",
+      "<div class=\"line\"><span class=\"lyric-plain\"></span></div>",
+      "<div class=\"line\"><span class=\"cell\"><span class=\"chord\">F</span><span class=\"lyric\">කොතැනක හිටියත් </span></span><span class=\"cell\"><span class=\"chord\">Dm</span><span class=\"lyric\">ඉපදුනු මියයන </span></span><span class=\"cell\"><span class=\"chord\">F</span><span class=\"lyric\">බිම එකනේ දෝ</span></span><span class=\"cell\"><span class=\"chord\">Am</span><span class=\"lyric\">....</span></span></div>",
+      "<div class=\"line\"><span class=\"cell\"><span class=\"chord\">Gm</span><span class=\"lyric\">ඒ බිම එක්වී </span></span><span class=\"cell\"><span class=\"chord\">F</span><span class=\"lyric\">සුරකින යුතුකම </span></span><span class=\"cell\"><span class=\"chord\">C</span><span class=\"lyric\">අප සතු </span></span><span class=\"cell\"><span class=\"chord\">C7</span><span class=\"lyric\">නේදෝ</span></span><span class=\"cell\"><span class=\"chord\">F</span><span class=\"lyric\">..</span></span></div>",
+      "<div class=\"line\"><span class=\"lyric-plain\"></span></div>",
+      "<div class=\"line\"><span class=\"cell\"><span class=\"chord\">F</span><span class=\"lyric\">එක මවකගෙ දරු </span></span><span class=\"cell\"><span class=\"chord\">Dm</span><span class=\"lyric\">කැල සේ හිනැහි </span></span><span class=\"cell\"><span class=\"chord\">F</span><span class=\"lyric\">ඉන්නයයි සැමදා</span></span><span class=\"cell\"><span class=\"chord\">Am</span><span class=\"lyric\">...</span></span></div>",
+      "<div class=\"line\"><span class=\"cell\"><span class=\"chord\">Gm</span><span class=\"lyric\">නෙතු හමුවට කඳුලැ</span></span><span class=\"cell\"><span class=\"chord\">F</span><span class=\"lyric\">ල්ලක් නම් නොම</span></span><span class=\"cell\"><span class=\"chord\">C</span><span class=\"lyric\">වන්නයි </span></span><span class=\"cell\"><span class=\"chord\">C7</span><span class=\"lyric\">කිසිදා</span></span><span class=\"cell\"><span class=\"chord\">F</span><span class=\"lyric\">..</span></span></div>"
+    ],
+    "filename": "uthuru_kone.txt"
+  }
+];
+
+let sortCol = 0, sortAsc = true, filterText = "", selectedIdx = null;
+
+/* ── theme ── */
+function applyTheme(theme) {
+  document.documentElement.setAttribute("data-theme", theme);
+  const thumb = document.getElementById("theme-thumb");
+  const label = document.getElementById("theme-label");
+  thumb.textContent = theme === "dark" ? "☀" : "🌙";
+  label.textContent = theme === "dark" ? "☾" : "☀";
+}
+function toggleTheme() {
+  const next = document.documentElement.getAttribute("data-theme") === "dark" ? "light" : "dark";
+  localStorage.setItem("cr-theme", next);
+  applyTheme(next);
+}
+applyTheme(localStorage.getItem("cr-theme") || "dark");
+
+/* ── table ── */
+function getDisplay() {
+  return SONGS
+    .map((s, i) => ({...s, _orig: i}))
+    .filter(s => {
+      if (!filterText) return true;
+      return (s.title + s.composer + s.lyricist + s.singer)
+        .toLowerCase().includes(filterText.toLowerCase());
+    })
+    .sort((a, b) => {
+      const k = ["title","composer","lyricist","singer"][sortCol];
+      return sortAsc ? a[k].localeCompare(b[k]) : b[k].localeCompare(a[k]);
+    });
+}
+
+function renderTable() {
+  const rows  = getDisplay();
+  const tbody = document.getElementById("song-tbody");
+  tbody.innerHTML = "";
+  rows.forEach(s => {
+    const tr = document.createElement("tr");
+    if (s._orig === selectedIdx) tr.classList.add("selected");
+    tr.innerHTML =
+      `<td class="title-cell">${esc(s.title)}</td>` +
+      `<td class="meta-cell">${esc(s.composer)}</td>` +
+      `<td class="meta-cell">${esc(s.lyricist)}</td>` +
+      `<td class="meta-cell">${esc(s.singer)}</td>`;
+    tr.onclick = () => openSheet(s._orig);
+    tbody.appendChild(tr);
+  });
+  const n = rows.length;
+  document.getElementById("song-count").textContent = n + " song" + (n !== 1 ? "s" : "");
+  document.getElementById("no-results").style.display = n ? "none" : "block";
+}
+
+function sortBy(col) {
+  sortCol === col ? (sortAsc = !sortAsc) : (sortCol = col, sortAsc = true);
+  document.querySelectorAll("thead th").forEach(th => {
+    const c = +th.dataset.col;
+    th.classList.toggle("active", c === sortCol);
+    th.querySelector(".sort-icon").textContent =
+      c === sortCol ? (sortAsc ? "▲" : "▼") : "⇅";
+  });
+  renderTable();
+}
+
+function filterSongs() {
+  filterText = document.getElementById("search").value;
+  renderTable();
+}
+
+function openSheet(idx) {
+  selectedIdx = idx;
+  renderTable();
+  const s = SONGS[idx];
+  document.getElementById("sheet-title").textContent = s.title;
+  document.getElementById("sheet-meta").innerHTML =
+    `<span><strong>Composer</strong> ${esc(s.composer)}</span>` +
+    `<span><strong>Lyricist</strong> ${esc(s.lyricist)}</span>` +
+    `<span><strong>Singer</strong>   ${esc(s.singer)}</span>`;
+  document.getElementById("sheet-body").innerHTML = s.sections.join("\n");
+  const panel = document.getElementById("sheet-panel");
+  panel.classList.add("open");
+  panel.scrollTop = 0;
+}
+
+function closeSheet() {
+  selectedIdx = null;
+  document.getElementById("sheet-panel").classList.remove("open");
+  renderTable();
+}
+
+function esc(s) {
+  return String(s)
+    .replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+}
+
+renderTable();
+</script>
+</body>
+</html>
